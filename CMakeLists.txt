@@ -129,6 +129,11 @@ find_library(libpcanfd libpcanfd.so)
 #   src/${PROJECT_NAME}/ft_ati_mini45_hardware_interface.cpp
 # )
 
+
+add_executable(ft_ati_hw_node src/ft_ati_mini45_hw.cpp)
+add_dependencies(ft_ati_hw_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ft_ati_hw_node ${catkin_LIBRARIES} ${libpcanfd})
+
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
