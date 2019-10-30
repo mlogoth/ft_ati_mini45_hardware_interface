@@ -2,24 +2,26 @@
 
 ## Drivers Installation Instructions
 1. Dowload PEAK CAN-USB Linux Drivers Version 8.6.0:
-https://www.peak-system.com/Details.114+M5a4777bb44d.0.html?&L=1
+
+   https://www.peak-system.com/Details.114+M5a4777bb44d.0.html?&L=1
 
 2. Build Binaries
-   1. ``tar –xzf peak-linux-driver-8.6.0.tar.gz``
-   2. ``cd peak-linux-driver-8.6.0``
-   3. ``make clean``
-   4. ``make all``
+   1. ```tar –xzf peak-linux-driver-8.6.0.tar.gz```
+   2. ```cd peak-linux-driver-8.6.0```
+   3. ```make clean```
+   4. ```make all```
    
     Be sure that the libpopt-dev package is already installed. If not:
-    
-    ``sudo apt-get install libpopt-dev``
+    ```bash 
+    sudo apt-get install libpopt-dev
+    ```
 
 3. Install Package:
    
    ``sudo make install``
    
    if the kernel is 5.X you get the error:
-   ```
+   ```cpp
    peak-linux-driver-8.6.0/driver/src/pcan_common.h:191:2: error: implicit declaration of function ‘do_gettimeofday’; did you mean ‘do_settimeofday64’? [-Werror=implicit-function-declaration]
     do_gettimeofday(tv);
     ^~~~~~~~~~~~~~~
@@ -28,7 +30,7 @@ https://www.peak-system.com/Details.114+M5a4777bb44d.0.html?&L=1
     ```
     Sollution: 
     Add to peak-linux-driver-8.6.0/driver/src/pcan_common.h :
-    ```
+    ``` cpp
     static inline void do_gettimeofday(struct timeval *tv)
     {
 	    struct timespec64 ts;
@@ -39,11 +41,15 @@ https://www.peak-system.com/Details.114+M5a4777bb44d.0.html?&L=1
     ```
     And run again:
 
-    ``make clean``
-
-    ``make all``
-
-    ``sudo make install``
+    ```sh 
+    make clean
+    ```
+    ```sh 
+    make all
+    ```
+    ```sh
+    sudo make install
+    ```
 
 
 
@@ -58,7 +64,7 @@ https://www.peak-system.com/Details.114+M5a4777bb44d.0.html?&L=1
 
 1.  Download and install the following file peak-system.list from the PEAK-System website:
    
-   ``wget -q http://www.peak-system.com/debian/dists/`lsb_release -cs`/peak-system.list -O- | sudo tee /etc/apt/sources.list.d/peak-system.list``
+   	``wget -q http://www.peak-system.com/debian/dists/`lsb_release -cs`/peak-system.list -O- | sudo tee /etc/apt/sources.list.d/peak-system.list``
 
 2. Then, download and install the PEAK-System public key for apt-secure, so that the repository is trusted:
    
