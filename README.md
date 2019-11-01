@@ -86,7 +86,7 @@ Send Messages for Initialization:
 | CAN ID | Length  |  Data | Cycle Time  | 
 |:-:|:-:|:-:|:-:|
 | 20Fh |  6 | 00 00 00 00 00 01  | Wait  |
-| 20Fh |  6 | 2D 00 00 00 00 01  | Wait  |
+| 20Fh |  6 | 20 00 00 00 00 01  | Wait  |
 | 20Fh |  6 | 0D 11 0D 40 0D 41  | Wait  |
 | 20Fh |  6 | 0D 12 00 00 00 01  | Wait  |
 | 20Fh |  6 | 2D 11 0D 40 0D 41  | Wait  |
