@@ -92,3 +92,9 @@ Send Messages for Initialization:
 | 20Fh |  6 | 2D 11 0D 40 0D 41  | Wait  |
 | 20Fh |  6 | 2D 12 00 00 00 01  | Wait  |
 | 080h |  0 |   | Wait  |
+
+
+### Filtering
+
+IIR Real Time Filter Library C++
+https://github.com/berndporr/iir1

@@ -8,9 +8,12 @@
 #include <controller_manager/controller_manager.h>
 #include <ros/ros.h>
 #include <ros/console.h>
+#include <geometry_msgs/WrenchStamped.h>
 // PCAN
 #include <libpcanfd.h>
 #include <libpcan.h>
+// Filtering Library
+#include <MedianFilter.h>
 
 using namespace hardware_interface;
 
@@ -26,7 +29,7 @@ std::string int_to_hex(T i)
   return stream.str();
 }
 
-#define RATE 100.0
+#define RATE 300.0
 
 class ATIMini45 : public RobotHW
 {
@@ -43,6 +46,9 @@ public:
 
     // ROS Node Handler
     n_ = ros::NodeHandle();
+
+    // ROS Publisher
+    ft_pub = n_.advertise<geometry_msgs::WrenchStamped>("ft_measurements",1000);
   }
 
   void printCANMSG(TPCANMsg *_msg)
@@ -144,6 +150,44 @@ public:
     if (DEBUG)
       ATIMini45::printCANMSG(_msg);
   }
+
+
+
+  /*
+  * Initialization To Cancel 
+  */
+  void initRoutine()
+  {
+    ROS_INFO("Init Routine for Offsets!");
+
+    for(unsigned int i=0;i<_max_iterations;i++)
+    {
+      // Read Values
+      ATIMini45::write();
+      // Read Values
+      ATIMini45::read();
+      //
+      // Force offsets
+      frc_off[0] += frc[0];
+      frc_off[1] += frc[1];
+      frc_off[2] += frc[2];
+      // Torque Offsets
+      trq_off[0] += trq[0];
+      trq_off[1] += trq[1];
+      trq_off[2] += trq[2];
+
+      usleep(100);
+    }
+
+    for (unsigned int i=0;i<3;i++)
+    {
+      frc_off[i] = frc_off[i]/_max_iterations;
+      trq_off[i] = trq_off[i]/_max_iterations;
+    }
+    _add_offsets = true;
+  }
+
+
 
   /*
   * INITIALIZATION FUNCTION
@@ -293,14 +337,6 @@ public:
     
       else if ((int)msg[i].DATA[0] == 1)
       {
-        /*
-        msg[i].DATA[1]=0xe1;
-        msg[i].DATA[2]=0x7b;
-        msg[i].DATA[3]=0xce;
-        msg[i].DATA[4]=0x42;
-        msg[i].DATA[5]=0x03;
-        msg[i].DATA[6]= 0xeb;
-        */
         // FORCES
         float data[3];
         unsigned int cnt = 0;
@@ -344,8 +380,59 @@ public:
         }
       
     }
-          std::cout<<"Forces: \n"<<"x: "<<frc[0]<<" |y: "<<frc[1]<<" |z: "<<frc[2]<<std::endl;
-          std::cout<<"Torques: \n"<<"x: "<<trq[0]<<" |y: "<<trq[1]<<" |z: "<<trq[2]<<std::endl;
+          //std::cout<<"------------ RAW DATA --------------------"<<std::endl;
+          //std::cout<<"Forces: \n"<<"x: "<<frc[0]<<" |y: "<<frc[1]<<" |z: "<<frc[2]<<std::endl;
+          //std::cout<<"Torques: \n"<<"x: "<<trq[0]<<" |y: "<<trq[1]<<" |z: "<<trq[2]<<std::endl;
+          if(_add_offsets){
+            for (size_t i = 0; i < 3; i++)
+            {
+              frc[i]-=frc_off[i];
+              trq[i]-=trq_off[i];
+            }
+            std::cout<<"------------ OFFSETS --------------------"<<std::endl;
+            std::cout<<"Forces: \n"<<"x: "<<frc_off[0]<<" |y: "<<frc_off[1]<<" |z: "<<frc_off[2]<<std::endl;
+            std::cout<<"Torques: \n"<<"x: "<<trq_off[0]<<" |y: "<<trq_off[1]<<" |z: "<<trq_off[2]<<std::endl;
+
+            std::cout<<"------------ NO OFFSET DATA --------------------"<<std::endl;
+            std::cout<<"Forces: \n"<<"x: "<<frc[0]<<" |y: "<<frc[1]<<" |z: "<<frc[2]<<std::endl;
+            std::cout<<"Torques: \n"<<"x: "<<trq[0]<<" |y: "<<trq[1]<<" |z: "<<trq[2]<<std::endl;
+            
+          }
+
+
+          ffx.addSample(frc[0]);
+          ffy.addSample(frc[1]);
+          ffz.addSample(frc[2]);
+
+          ftx.addSample(trq[0]);
+          fty.addSample(trq[1]);
+          ftz.addSample(trq[2]);
+
+          if(ffx.isReady()&&ffy.isReady()&&ffz.isReady()&&ftx.isReady()&&fty.isReady()&&ftz.isReady())
+          {
+            frc[0]=ffx.getMedian();
+            frc[1]=ffy.getMedian();
+            frc[2]=ffz.getMedian();
+
+            trq[0]=ftx.getMedian();
+            trq[1]=fty.getMedian();
+            trq[2]=ftz.getMedian();
+          }
+
+          geometry_msgs::WrenchStamped mm;
+          mm.header.frame_id = 'ft_link';
+          mm.header.stamp = ros::Time::now();
+
+          mm.wrench.force.x = frc[0];
+          mm.wrench.force.y = frc[1];
+          mm.wrench.force.z = frc[2];
+
+          mm.wrench.torque.x = trq[0];
+          mm.wrench.torque.y = trq[1];
+          mm.wrench.torque.z = trq[2];
+
+          ft_pub.publish(mm);
+
   }
 
 void
@@ -372,15 +459,21 @@ private:
   // Force and Torques
   double frc[3];
   double trq[3];
+  double frc_off[3]={0.0,0.0,0.0};
+  double trq_off[3]={0.0,0.0,0.0};
+  int _max_iterations=2000;
   int indf, indt;
+  bool _add_offsets=false;
   // Attached Link
   std::string _attached_link = "world";
   // Node Handler
   ros::NodeHandle n_;
+  ros::Publisher ft_pub;
   // FD of Socket
   HANDLE h;
   // Device CAN
   const char *_device = "/dev/pcanusb32";
+  MedianFilter<double,5> ffx,ffy,ffz,ftx,fty,ftz;
 };
 
 int main(int argc, char **argv)
@@ -399,6 +492,9 @@ int main(int argc, char **argv)
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
+
+  
+  robot.initRoutine();
 
   ros::Duration dur = robot.get_period();
 
